@@ -36,7 +36,7 @@ analyzer在**org.apache.lucene.analysis.core**包下
 analysis phase 包括pre- and post-tokenization functions, and this is where the character filter and token filter come into play
 
 > `Character filter` 用来过滤html, markups 还有用户自定义pattern. Converting a special character or specific text
-> The `tokenizer` splits up text into tokens. 
+> The `tokenizer` splits up text into tokens.
 > The `token filter` executes the post tokenization filtering; or instance, stemming, stop word filtering, text normalization, and synonym expansion are all part of token filter
 
 ***The output of these analysis processes is TokenStream where the indexing process can consume and produce an index***

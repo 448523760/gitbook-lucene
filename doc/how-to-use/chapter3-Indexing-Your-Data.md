@@ -25,7 +25,6 @@ Another important concept to learn is the segmented nature of Lucene's index fil
 
 The terms and documents can exist in any of the segments, depending on when the new documents and terms are added. The IndexReader attributes will merge the index segments internally so that you can access a coherent index without having to consider the index segmentation.
 
-
 ## Obtaining an IndexWriter
 
 We have seen how an IndexWriter is obtained just by simply initialized with an `Analyzer` and `IndexWriterConfig`. The default initialization behavior usually works well for the majority of the time. However, there may be situations where you need finer control during the initialization sequence. For example, when the default behavior creates a new index if an existing index doesn't exist already. This may not be ideal in a production environment where an index should always exist. Generating a new index will automatically hide the issue that an index is missing. Perhaps there was a glitch in the backup routine where it accidentally removed the index, or there was a data corruption issue that somehow wiped out the index directory. In any case, it would be beneficial if we are aware of the indexing status and alerted when issues are detected.
@@ -93,3 +92,80 @@ Lucene provides four Field classes for storing numeric values. They are `IntFiel
 ![number-trie](./resource/chapter3-number-trie.jpg)
 
 Each Term is logically assigned to larger and larger predefined lower-precision brackets. For example, let's assume that the brackets are divided by a quotient of division of a lower level by ten as in the preceding diagram. So, under the 1 bracket (at the top level), we get DocId associated with values in the 100s range, and under the 12 bracket, we get association with values in the 120s range and so on. Now, let's say you want to search by numeric range of all documents with the numeric value between 230 and 239: Lucene can simply find the 23 bracket in the index and return all the DocIds underneath. As you can see, this technique allows Lucene to leverage its indexing power to also handle numerals with ease.
+
+> ![todo: figure out how to use number field and how it works](https://learning.oreilly.com/library/view/lucene-4-cookbook/9781782162285/ch03s05.html)
+
+## Creating a DocValue Field
+
+Similar to a stored field, DocValue is a part of a document. It's also created at indexing time, and contains value that are specific to a document. The major difference between the two concerns their underlying storage structure. **The field's storage is row-oriented, whereas DocValue's storage is column-oriented**. **In retrieval, all field values are returned at once per document, so that loading the relevant information about a document is very fast. However, if you need to scan a field for any other purpose it will be a slow process, as you will have to iterate through all the documents and load each document's fields per iteration**. The DocValue is stored by column in DocId to value mapping, and loading the values for a specific DocValue for all documents at once can be done quickly, as Lucene only has to scan through one column rather than iterating through each document to load a field. In summary, the field and DocValue both contain information about a document, but they serve a different purpose in practical usage.
+
+The following is an illustration of how field and DocValue differ in a storage structure:
+
+![docvalue-store](./resource/chapter3-docvalue-store.jpg)
+
+Lucene provides the following DocValue types:
+
+* BinaryDocValues: This is a per-document byte[] array that can be used to store custom data structure
+* NumericDocValues: This is a per-document single-valued numeric type value
+* SortedDocValues: This is a per-document single-valued string type that's stored and sorted separately; the DocValue itself is a DocId to term ID mapping where the term ID references a term in a sorted term list
+* SortedNumericDocValues: This is similar to SortedDocValues, but this is for numeric values only
+* SortedSetDocValues: This is similar to SortedDocValues, but each document in DocValues is mapped to a set instead of a single value
+
+> code snippet DocValues
+
+```java
+Analyzer analyzer = new StandardAnalyzer();
+Directory directory = new RAMDirectory();
+IndexWriterConfig config = new IndexWriterConfig(Version.LATEST, analyzer);
+IndexWriter indexWriter = new IndexWriter(directory, config);
+Document document = new Document();
+document.add(new SortedDocValuesField("sorted_string", new BytesRef("hello")));
+indexWriter.addDocument(document);
+document = new Document();
+document.add(new SortedDocValuesField("sorted_string", new BytesRef("world")));
+indexWriter.addDocument(document);
+indexWriter.commit();
+indexWriter.close();
+IndexReader reader = DirectoryReader.open(directory);
+document = reader.document(0);
+System.out.println("doc 0: " + document.toString());
+document = reader.document(1);
+System.out.println("doc 1: " + document.toString());
+for (AtomicReaderContext context : reader.leaves()) {
+    AtomicReader atomicReader = context.reader();
+    SortedDocValues sortedDocValues = DocValues.getSorted(atomicReader, "sorted_string");
+    System.out.println("Value count: " + sortedDocValues.getValueCount());
+    System.out.println("doc 0 sorted_string: " + sortedDocValues.get(0).utf8ToString());
+    System.out.println("doc 1 sorted_string: " + sortedDocValues.get(1).utf8ToString());
+}
+
+reader.close();
+```
+
+### How it works...
+
+The initial setup is very familiar. We obtain an IndexWriter by setting up an Analyzer object StandardAnalyzer and a Directory object RAMDirectory. Then, we add two documents with a single DocValues called SortedDocValues and no field. Note that we add a SortedDocValues by using SortedDocValuesField, which is similar to adding a regular field. For SortedDocValuesField, a String value needs to be converted to a bytes array by using BytesRef. After DocValues are added, we commit the changes and close the IndexWriter. We then open it with an IndexReader: a Reader that reads index data. Note that there are two print statements, which show that we have two documents in the index. Because the DocValues reader can only leverage AtomicReader, we need to iterate through all AtomicReader in IndexReader, in order to examine all the segments. An AtomicReader can only read one index segment, hence, the iteration. With AtomicReader, we can extract DocValues from SortedDocValues by calling getSorted(AtomicReader, String). The next line shows that you can get a count of values in DocValues. The following two lines show that you can obtain DocValue by DocId. Here is the output from the sample code:
+
+```txt
+doc 0: Document<>
+doc 1: Document<>
+Value count: 2
+doc 0 sorted_string: hello
+doc 1 sorted_string: world
+```
+
+## Transactional commits and index versioning
+
+In the world of data management platforms, anything that supports transactional commits would implement ACID (Atomicity, Consistency, Isolation, Durability). ACID is a set of properties that guarantees that transactions are processed reliably. So, how does Lucene measure against ACID?
+
+* Atomicity: This property requires that each transaction is all or nothing. When a transaction fails, none of the partial changes performed by the transaction should persist or be visible. Changes from a transaction should only persist and made visible when the transaction completes and is committed. Lucene's IndexWriter supports transactional commit. Changes to the index will only be made visible to IndexReader after we call commit(). If an IndexWriter crashes for whatever reason or never calls commit(), the partial changes will never be made visible to the IndexReader.
+
+* Consistency: This property ensures that any committed changes will bring the system from one valid state to another valid state. Any changes written to the disk must be valid and conform to constraints, format, and any other rules that ensure the validity of the data. Lucene fully supports this property as the index is always valid and the uncommitted transactions will never be made visible. Lucene's index can survive crashes, a power failure, and even when the process itself is killed.
+
+* Isolation: This property ensures that the concurrent execution of transactions is supported and that each transaction runs under its own isolation, without interfering with each other. Lucene handles this with an IndexWriter by not exposing the changes to the IndexReader during a transaction (before commit() is called).
+
+* Durability: This property ensures that the changes remain intact once committed. Anything that's committed should survive crashes, a power failure, and so on. Lucene supports this by guaranteeing that when commit() is called, the changes from a transaction are persisted on the disk, so that any immediate failure after commit would not undo or alter the changes made through the transaction.
+
+Lucene supports a **two-phase commit** where you can call `prepareCommit()` in IndexWriter to do all the necessary work (and flush the changes to the disk) beforehand. Then, you can call `commit()` to commit the changes or rollback() to rollback the transaction. Note that calling rollback() will also close the IndexWriter. Calling commit() actually triggers a call to prepareCommit() internally and calling close() will trigger a call to commit() before IndexWriter is closed.
+
+## todo...

@@ -2,7 +2,7 @@
 
 ## Analyzing Your Text
 
-A term is a fundamental unit of data in a Lucene index. It associates with a Document and itself has two attributes – field and value. An analyzer is responsible for generating these terms. An analyzer is a container of tokenization and filtering processes. Tokenization is a process that breaks up text at word boundaries defined by a specific tokenizer component. 
+A term is a fundamental unit of data in a Lucene index. It associates with a Document and itself has two attributes – field and value. An analyzer is responsible for generating these terms. An analyzer is a container of tokenization and filtering processes. Tokenization is a process that breaks up text at word boundaries defined by a specific tokenizer component.
 
 ![analyzer-process](./resource/analyzer-process.jpg)
 In this illustration, a tokenizer uses a reader object to consume text. It produces a sequential set of tokens that is called TokenStream. TokenFilter accepts the TokenStream, applies the filtering process, and emits filtered data in TokenStream in return. TokenFilters can be chained together to attain the desired results. A character filter can also be used to preprocess data before tokenization. One example use case for character filters is stripping out HTML tags.
@@ -39,7 +39,7 @@ StandardAnalyzer:
 
 TokenStream is an intermediate data format between components within the analysis process. TokenStream acts as both an input and output format in all filters. For tokenizer, it consumes text from a reader and outputs result as TokenStream. Let's explore TokenStream in detail in this section.
 
-> tokenStream 
+> tokenStream
 
 ```java
 Reader reader = new StringReader("Text to be passed");
@@ -116,20 +116,18 @@ The PositionIncrementAttribute class shows the position of the current token rel
 
 This attribute is useful in phrase matching, where the position and order of words matters. For example, say you want to execute an exact phrase match. As we step through TokenStream, the PositionIncrementAttribute class on each matching token should be 1 so we know the phrase we are matching is matched word for word exactly in the same order as the search phrase.
 
-
-
 ## todo add missing page
 
 add missing page between Using `PositionIncrementAttribute` and `Defining custom TokenFilters`
 
 ![book](https://learning.oreilly.com/library/view/lucene-4-cookbook/9781782162285/ch02s07.html)
 
-
 ## Defining custom TokenFilters
 
 Sometimes, search behaviors may be so specific that we need to create a custom TokenFilter to achieve those behaviors. To create a custom filter, we will extend from the TokenFilter class and override the incrementToken() method.
 
 > We will create a simple word-expanding TokenFilter that expands courtesy titles from the short form to the full word. For example, Dr expands to doctor.
+
 ```java
 public class CourtesyTitleFilter extends TokenFilter {
     Map<String,String> courtesyTitleMap = new HashMap<String,String>();
@@ -175,7 +173,7 @@ Note that the only method we need to override is createComponents. We don't need
 
 **Lucene provides a character-based tokenizer called CharTokenizer that should be suitable for most types of tokenizations. You can override its isTokenChar method to determine what characters should be considered as part of a token and what characters should be considered as delimiters. It's worthwhile to note that both LetterTokenizer and WhitespaceTokenizer extend from CharTokenizer.**
 
-> Sample WhitespaceTokenizer 
+> Sample WhitespaceTokenizer
 
 ```java
 public class MyTokenizer extends CharTokenizer {

@@ -81,7 +81,7 @@ private synchronized void fillSegment(char[] charArray , int begin , int length 
 
 > tips，热词更新:
 
-当词典初始化完毕后，可以调用Dictionary的addWords(Collection<String> words)方法往主词典_MainDict添加热词。
+当词典初始化完毕后，可以调用Dictionary的addWords(`Collection<String> words`)方法往主词典_MainDict添加热词。
 
 ```java
 /**
@@ -157,7 +157,6 @@ public synchronized Lexeme next()throws IOException {
         context.markBufferOffset();
     }
     return l;
-    
 }
 ```
 
@@ -170,7 +169,6 @@ CJKSegmenter.analyze则比较复杂一些，拿到第一个字符，调用Dictio
 ```java
 public void analyze(AnalyzeContext context) {
     if(CharacterUtil.CHAR_USELESS != context.getCurrentCharType()){
-        
         //优先处理tmpHits中的hit
         if(!this.tmpHits.isEmpty()){
             //处理词段队列
@@ -181,18 +179,15 @@ public void analyze(AnalyzeContext context) {
                     //输出当前的词
                     Lexeme newLexeme = new Lexeme(context.getBufferOffset() , hit.getBegin() , context.getCursor() - hit.getBegin() + 1 , Lexeme.TYPE_CNWORD);
                     context.addLexeme(newLexeme);
-                    
                     if(!hit.isPrefix()){//不是词前缀，hit不需要继续匹配，移除
                         this.tmpHits.remove(hit);
                     }
-                    
                 }else if(hit.isUnmatch()){
                     //hit不是词，移除
                     this.tmpHits.remove(hit);
-                }					
+                }
             }
-        }			
-        
+        }
         //*********************************
         //再对当前指针位置的字符进行单字匹配
         Hit singleCharHit = Dictionary.getSingleton().matchInMainDict(context.getSegmentBuff(), context.getCursor(), 1);
@@ -215,17 +210,14 @@ public void analyze(AnalyzeContext context) {
         //清空队列
         this.tmpHits.clear();
     }
-    
     //判断缓冲区是否已经读完
     if(context.isBufferConsumed()){
         //清空队列
         this.tmpHits.clear();
     }
-    
     //判断是否锁定缓冲区
     if(this.tmpHits.size() == 0){
         context.unlockBuffer(SEGMENTER_NAME);
-        
     }else{
         context.lockBuffer(SEGMENTER_NAME);
     }
@@ -259,13 +251,10 @@ private LexemePath judge(QuickSortSet.Cell lexemeCell , int fullTextLength){
     TreeSet<LexemePath> pathOptions = new TreeSet<LexemePath>();
     //候选结果路径
     LexemePath option = new LexemePath();
-    
     //对crossPath进行一次遍历,同时返回本次遍历中有冲突的Lexeme栈
     Stack<QuickSortSet.Cell> lexemeStack = this.forwardPath(lexemeCell , option);
-    
     //当前词元链并非最理想的，加入候选路径集合
     pathOptions.add(option.copy());
-    
     //存在歧义词，处理
     QuickSortSet.Cell c = null;
     while(!lexemeStack.isEmpty()){
@@ -276,7 +265,6 @@ private LexemePath judge(QuickSortSet.Cell lexemeCell , int fullTextLength){
         this.forwardPath(c , option);
         pathOptions.add(option.copy());
     }
-    
     //返回集合中的最优方案
     return pathOptions.first();
 
@@ -291,6 +279,3 @@ IK歧义判断规则如下，优先级从上到下一致降低：
 4. 分词位置越靠后的优先
 5. 词长越平均越好
 6. 词元位置权重越大越好（这个我也没明白，先这样，后面有需要再弄明白具体细节）
-
-
-
