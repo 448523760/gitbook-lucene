@@ -1,4 +1,4 @@
-# IndexingChain
+# index-chain
 
 文档的索引过程是通过DocumentsWriter的内部数据处理链完成的
 
@@ -138,8 +138,9 @@ public DocumentsWriterPerThread(int indexVersionCreated, String segmentName, Dir
     return new DocFieldProcessor(documentsWriterPerThread, docInverter, storedFields);
 
 }
-```java
+```
 
 至此，每个IndexWriter创建时，会分配一个线程池，线程池中存放着DocumentsWriterPerThread线程，每个线程中有一个默认的索引链IndexingChain与之相关联
 
-http://blog.itpub.net/28624388/viewspace-767366/
+![index-chain](./resource/index-chain.jpg)
+
